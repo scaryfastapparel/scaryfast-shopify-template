@@ -282,6 +282,85 @@ function generateDemoSeeds() {
 
   return seeds;
 }
+// --- BULK GENERATE & CREATE (safe) ---
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+app.post('/bulk-generate', async (req, res) => {
+  try {
+    const count = parseInt(req.body.count || 20, 10); // how many products to create
+    const seeds = req.body.seeds || generateDemoSeeds(); // uses your existing demo seeds function
+    const results = [];
+
+    // limit to requested count
+    const runSeeds = seeds.slice(0, count);
+
+    for (let i = 0; i < runSeeds.length; i++) {
+      const seed = runSeeds[i];
+
+      // 1) Generate structured product via OpenAI
+      let gen;
+      try {
+        gen = await generateProductViaOpenAI(seed);
+      } catch (err) {
+        results.push({ seedIndex: i, ok: false, error: `OpenAI error: ${err.message}` });
+        // small pause and continue
+        await sleep(500);
+        continue;
+      }
+
+      // 2) Compute safe retail price
+      const retailPrice = gen.recommended_price || computeRetailPrice(gen.price_base || 8, {
+        inflationRate: parseFloat(process.env.INFLATION_RATE || 0.05),
+        taxRate: parseFloat(process.env.SALES_TAX_RATE || 0.07),
+        margin: parseFloat(process.env.PROFIT_MARGIN || 0.35)
+      });
+
+      // 3) Build minimal, safe Shopify product payload
+      const safeProduct = {
+        product: {
+          title: gen.title || `${seed.product_type} - Scary Fast`,
+          body_html: gen.long_description || gen.short_description || "Scary Fast product",
+          vendor: "Scary Fast",
+          product_type: seed.product_type || "Apparel",
+          status: "draft",
+          tags: (gen.tags || []).slice(0,20),
+          variants: [
+            { option1: "Default Title", price: (retailPrice || 39.99).toString() }
+          ]
+        }
+      };
+
+      // 4) Create product in Shopify
+      try {
+        const shopResp = await axios.post(
+          `https://${SHOP}/admin/api/${API_VERSION}/products.json`,
+          safeProduct,
+          {
+            headers: {
+              'X-Shopify-Access-Token': SHOPIFY_TOKEN,
+              'Content-Type': 'application/json'
+            }
+          }
+        );
+
+        const created = shopResp.data && shopResp.data.product;
+        results.push({ seedIndex: i, ok: true, shopifyId: created && created.id, title: created && created.title });
+      } catch (shopErr) {
+        // grab meaningful error message if present
+        const shopMsg = shopErr.response?.data || shopErr.message || 'Shopify error';
+        results.push({ seedIndex: i, ok: false, error: shopMsg });
+      }
+
+      // 5) Sleep between iterations to reduce rate-limit risk (adjust ms if desired)
+      await sleep(800); // 800ms pause between creations
+    }
+
+    res.json({ ok: true, created_count: results.filter(r => r.ok).length, results });
+  } catch (err) {
+    console.error('bulk-generate error', err);
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
 
 /* --------- Start server --------- */
 app.listen(PORT, () => {
