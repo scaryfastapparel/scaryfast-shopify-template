@@ -361,6 +361,21 @@ app.post('/bulk-generate', async (req, res) => {
     res.status(500).json({ ok: false, error: err.message });
   }
 });
+const safeProduct = {
+  product: {
+    title: gen.title,
+    body_html: gen.long_description,
+    vendor: "Scary Fast",
+    product_type: seed.product_type,
+    status: "draft",
+    variants: [
+      { option1: "Default Title", price: retailPrice.toString() }
+    ],
+    images: [
+      { src: "https://link-to-your-printify-mockup-image.com/mockup1.png" }
+    ]
+  }
+};
 
 /* --------- Start server --------- */
 app.listen(PORT, () => {
