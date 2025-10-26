@@ -8,13 +8,18 @@ const app = express();
 app.use(express.json());
 
 const PORT = process.env.PORT || 3000;
+const SHOPIFY_DOMAIN = process.env.SHOPIFY_STORE_DOMAIN;
+const ACCESS_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN;
 
-// --- Health Check ---
+// ✅ Sanity check route
 app.get("/", (req, res) => {
-  res.send("✅ ScaryFast Shopify App is live and ready.");
+  res.send("✅ ScaryFast Shopify app is live!");
 });
 
-// --- Update product images ---
+// ✅ Health check route
+app.get("/health", (req, res) => res.json({ status: "OK" }));
+
+// ✅ Image update route
 app.post("/update-images", async (req, res) => {
   try {
     const { productIds } = req.body;
@@ -23,55 +28,50 @@ app.post("/update-images", async (req, res) => {
       return res.status(400).json({ error: "No product IDs provided." });
     }
 
-    const domain = process.env.SHOPIFY_STORE_DOMAIN;
-    const token = process.env.SHOPIFY_ACCESS_TOKEN;
-
-    if (!domain || !token) {
+    if (!SHOPIFY_DOMAIN || !ACCESS_TOKEN) {
       return res.status(500).json({
-        error: "Missing SHOPIFY_STORE_DOMAIN or SHOPIFY_ACCESS_TOKEN environment variables.",
+        error:
+          "Missing SHOPIFY_STORE_DOMAIN or SHOPIFY_ACCESS_TOKEN environment variable.",
       });
     }
 
     const updated = [];
 
     for (const id of productIds) {
-      console.log(`🛠️ Updating product ID: ${id}`);
+      console.log(`🛠 Updating product ID: ${id}`);
 
-      // Fetch product info
-      const { data } = await axios.get(
-        `https://${domain}/admin/api/2024-07/products/${id}.json`,
+      const shopifyRes = await axios.get(
+        `https://${SHOPIFY_DOMAIN}/admin/api/2024-07/products/${id}.json`,
         {
           headers: {
-            "X-Shopify-Access-Token": token,
+            "X-Shopify-Access-Token": ACCESS_TOKEN,
             "Content-Type": "application/json",
           },
         }
       );
 
-      const product = data.product;
+      const product = shopifyRes.data.product;
       if (!product) continue;
 
-      const title = product.title || "Unnamed Product";
-      const newImage = `https://via.placeholder.com/800x800.png?text=${encodeURIComponent(title)}`;
+      const title = product.title || "Untitled Product";
+      const newImage = `https://via.placeholder.com/800x800.png?text=${encodeURIComponent(
+        title
+      )}`;
 
-      // Update Shopify product image
       await axios.put(
-        `https://${domain}/admin/api/2024-07/products/${id}.json`,
+        `https://${SHOPIFY_DOMAIN}/admin/api/2024-07/products/${id}.json`,
         {
-          product: {
-            id,
-            images: [{ src: newImage }],
-          },
+          product: { id, images: [{ src: newImage }] },
         },
         {
           headers: {
-            "X-Shopify-Access-Token": token,
+            "X-Shopify-Access-Token": ACCESS_TOKEN,
             "Content-Type": "application/json",
           },
         }
       );
 
-      updated.push({ id, title, image: newImage });
+      updated.push({ id, title, newImage });
       console.log(`✅ Updated ${title}`);
     }
 
@@ -82,7 +82,6 @@ app.post("/update-images", async (req, res) => {
   }
 });
 
-// --- Health Route ---
-app.get("/health", (req, res) => res.send("OK"));
-
-app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+});
