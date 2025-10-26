@@ -49,6 +49,55 @@ function computeRetailPrice(cost, { inflationRate=0.05, taxRate=0.07, margin=0.3
   // round to .99 style or nearest whole
   return Math.round(retail * 100) / 100;
 }
+// ---- Printify Helper ----
+async function createPrintifyMockup(title, description, imageUrl) {
+  try {
+    // Get first connected shop
+    const shopResp = await axios.get("https://api.printify.com/v1/shops.json", {
+      headers: { Authorization: `Bearer ${process.env.PRINTIFY_API_KEY}` }
+    });
+    const shopId = shopResp.data?.[0]?.id;
+    if (!shopId) throw new Error("No Printify shop found.");
+
+    // Create a simple T-shirt product in Printify (blueprint 6 = men's tee, provider 1 = Monster Digital)
+    const payload = {
+      title,
+      description,
+      blueprint_id: 6,
+      print_provider_id: 1,
+      variants: [{ id: 4012, price: 1999, is_enabled: true }],
+      print_areas: [
+        {
+          variant_ids: [4012],
+          placeholders: [
+            {
+              position: "front",
+              images: [{ url: imageUrl }]
+            }
+          ]
+        }
+      ],
+      visible: false
+    };
+
+    const createResp = await axios.post(
+      `https://api.printify.com/v1/shops/${shopId}/products.json`,
+      payload,
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.PRINTIFY_API_KEY}`,
+          "Content-Type": "application/json"
+        }
+      }
+    );
+
+    const mockupImg = createResp.data?.images?.[0]?.src;
+    return mockupImg || null;
+  } catch (err) {
+    console.error("Printify error:", err.response?.data || err.message);
+    return null;
+  }
+}
 
 /* --------- OpenAI: generate structured product JSON --------- */
 async function generateProductViaOpenAI(promptSeed, options={}) {
