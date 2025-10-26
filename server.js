@@ -437,28 +437,27 @@ app.post('/update-images', async (req, res) => {
 
     for (const id of productIds) {
       console.log(`Updating product ${id}...`);
+const shopProd = await axios.get(
+  `https://${process.env.SHOPIFY_STORE_DOMAIN}/admin/api/2024-07/products/${id}.json`,
+  {
+    headers: {
+      "X-Shopify-Access-Token": process.env.SHOPIFY_ACCESS_TOKEN,
+      "Content-Type": "application/json"
+    }
+  }
+);
 
-      // 1️⃣ Get product details from Shopify
-      const shopProd = await axios.get(
-        `https://${process.env.SHOPIFY_STORE_DOMAIN}/admin/api/2024-07/products/${id}.json`,
-        {
-          headers: {
-            "X-Shopify-Access-Token": process.env.SHOPIFY_ACCESS_TOKEN,
-            "Content-Type": "application/json"
-          }
-        }
-      );
+// ✅ FIX: define product from Shopify response
+const product = shopProd.data.product;
+const title = product.title || "Untitled Product";
+const desc = product.body_html || "No description available.";
 
-      const product = shopProd.data.product;
-      const title = product.title || "Untitled Product";
-      const desc = product.body_html || "No description available.";
-
-      // 2️⃣ Create a mockup on Printify
-      const mockupUrl = await createPrintifyMockup(
-        title,
-        desc,
-        "https://yourdesignlibrary.com/default-design.png"
-      );
+// ✅ Use title and desc when creating mockups
+const mockupUrl = await createPrintifyMockup(
+  title,
+  desc,
+  "https://yourdesignlibrary.com/default-design.png"
+);
 
       if (mockupUrl) {
         // 3️⃣ Add the image to Shopify
