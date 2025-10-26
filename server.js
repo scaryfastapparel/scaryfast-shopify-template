@@ -273,8 +273,8 @@ app.post('/bulk-generate', async (req, res) => {
       });
 
       const productData = {
-        title: gen.title,
-        long_description: gen.long_description || gen.short_description,
+        title: product.title,
+        long_description: product.body.html || gen.short_description,
         tags: gen.tags || [],
         price: retailPrice,
         product_type: seed.product_type || "Apparel",
@@ -367,8 +367,8 @@ app.post('/bulk-generate', async (req, res) => {
       // 3) Build minimal, safe Shopify product payload
       const safeProduct = {
         product: {
-          title: gen.title || `${seed.product_type} - Scary Fast`,
-          body_html: gen.long_description || gen.short_description || "Scary Fast product",
+          title: product.title || `${seed.product_type} - Scary Fast`,
+          body_html: product.body.html || gen.short_description || "Scary Fast product",
           vendor: "Scary Fast",
           product_type: seed.product_type || "Apparel",
           status: "draft",
@@ -412,8 +412,8 @@ app.post('/bulk-generate', async (req, res) => {
 });
 const safeProduct = {
   product: {
-    title: gen.title,
-    body_html: gen.long_description,
+    title: product.title,
+    body_html: product.body.html,
     vendor: "Scary Fast",
     product_type: seed.product_type,
     status: "draft",
