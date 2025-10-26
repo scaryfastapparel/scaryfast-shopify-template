@@ -438,54 +438,26 @@ app.post('/update-images', async (req, res) => {
     for (const id of productIds) {
       console.log(`Updating product ${id}...`);
 
-     const shopProd = await axios.get(
-  `https://${process.env.SHOPIFY_STORE_DOMAIN}/admin/api/2024-07/products/${id}.json`,
-  {
-    headers: {
-      "X-Shopify-Access-Token": process.env.SHOPIFY_ACCESS_TOKEN,
-      "Content-Type": "application/json"
-    }
-  }
-       const shopProd = await axios.get(
-  `https://${process.env.SHOPIFY_STORE_DOMAIN}/admin/api/2024-07/products/${id}.json`,
-  {
-    headers: {
-      "X-Shopify-Access-Token": process.env.SHOPIFY_ACCESS_TOKEN,
-      "Content-Type": "application/json"
-    }
-  }
-);
+      // 1️⃣ Get product details from Shopify
+      const shopProd = await axios.get(
+        `https://${process.env.SHOPIFY_STORE_DOMAIN}/admin/api/2024-07/products/${id}.json`,
+        {
+          headers: {
+            "X-Shopify-Access-Token": process.env.SHOPIFY_ACCESS_TOKEN,
+            "Content-Type": "application/json"
+          }
+        }
+      );
 
-// ✅ Fix: define `product` from response
-const product = shopProd.data.product;
+      const product = shopProd.data.product;
+      const title = product.title || "Untitled Product";
+      const desc = product.body_html || "No description available.";
 
-// ✅ Use it properly
-const title = product.title || "Untitled Product";
-const desc = product.body_html || "No description available.";
-
-const mockupUrl = await createPrintifyMockup(
-  title,
-  desc,
-  "https://yourdesignlibrary.com/default-design.png"
-);
-
-);
-
-// ✅ Fix: define `product` from response
-const product = shopProd.data.product;
-
-// ✅ Use it properly
-const title = product.title || "Untitled Product";
-const desc = product.body_html || "No description available.";
-
-const mockupUrl = await createPrintifyMockup(
-  title,
-  desc,
-  "https://yourdesignlibrary.com/default-design.png"
-);
-
-
-      
+      // 2️⃣ Create a mockup on Printify
+      const mockupUrl = await createPrintifyMockup(
+        title,
+        desc,
+        "https://yourdesignlibrary.com/default-design.png"
       );
 
       if (mockupUrl) {
@@ -508,29 +480,12 @@ const mockupUrl = await createPrintifyMockup(
       }
     }
 
-  const shopProd = await axios.get(
-  `https://${process.env.SHOPIFY_STORE_DOMAIN}/admin/api/2024-07/products/${id}.json`,
-  {
-    headers: {
-      "X-Shopify-Access-Token": process.env.SHOPIFY_ACCESS_TOKEN,
-      "Content-Type": "application/json"
-    }
+    res.json({ ok: true, updated: results });
+  } catch (err) {
+    console.error("❌ Error in /update-images:", err.response?.data || err.message);
+    res.status(500).json({ ok: false, error: err.message });
   }
-);
-
-// ✅ Fix: define `product` from response
-const product = shopProd.data.product;
-
-// ✅ Use it properly
-const title = product.title || "Untitled Product";
-const desc = product.body_html || "No description available.";
-
-const mockupUrl = await createPrintifyMockup(
-  title,
-  desc,
-  "https://yourdesignlibrary.com/default-design.png"
-);
-
+}); 
 
 /* --------- Start server --------- */
 app.listen(PORT, () => {
